@@ -93,7 +93,7 @@ const ProjectApplicationsList = ({ projectId, onApplicationResponse, onOpenChat,
         // If accepting, also reject other applications for this project
         if (action === 'accept') {
           setApplications(prev => prev.map(app => 
-            app._id !== applicationId && app.status === 'pending'
+            app._id !== applicationId && (app.status === 'pending' || app.status === 'accepted')
               ? { ...app, status: 'rejected' }
               : app
           ));
@@ -188,7 +188,7 @@ const ProjectApplicationsList = ({ projectId, onApplicationResponse, onOpenChat,
   const getStatusBadge = (status) => {
     const statusConfig = {
       pending: { variant: 'warning', text: 'Pending Review' },
-      accepted: { variant: 'success', text: 'Accepted' },
+      accepted: { variant: 'info', text: 'Offer Agreed - Select for Job' },
       rejected: { variant: 'error', text: 'Rejected' },
       withdrawn: { variant: 'secondary', text: 'Withdrawn' },
       awarded: { variant: 'primary', text: 'Project Awarded' }
@@ -359,7 +359,7 @@ const ProjectApplicationsList = ({ projectId, onApplicationResponse, onOpenChat,
             )}
 
             {/* Action Buttons */}
-            {application.status === 'pending' && !isProjectAwarded && (
+            {(application.status === 'pending' || application.status === 'accepted') && !isProjectAwarded && (
               <div className="flex gap-3 pt-4 border-t border-gray-100">
                 <Button
                   variant="success"
@@ -371,17 +371,27 @@ const ProjectApplicationsList = ({ projectId, onApplicationResponse, onOpenChat,
                   <CheckIcon className="h-4 w-4" />
                   {respondingTo === application._id ? 'Selecting...' : 'Select for Job'}
                 </Button>
+
+                {/* Show agreed amount if negotiated */}
+                {application.status === 'accepted' && application.negotiatedAt && (
+                  <div className="flex items-center gap-1 text-green-700 bg-green-50 px-3 py-1 rounded-lg text-sm font-medium">
+                    <CurrencyDollarIcon className="h-4 w-4" />
+                    Agreed: Rs.{application.proposedRate}
+                  </div>
+                )}
                 
-                <Button
-                  variant="error"
-                  size="small"
-                  onClick={() => handleApplicationResponse(application._id, 'reject')}
-                  disabled={respondingTo === application._id}
-                  className="flex items-center gap-2"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                  Reject
-                </Button>
+                {application.status === 'pending' && (
+                  <Button
+                    variant="error"
+                    size="small"
+                    onClick={() => handleApplicationResponse(application._id, 'reject')}
+                    disabled={respondingTo === application._id}
+                    className="flex items-center gap-2"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                    Reject
+                  </Button>
+                )}
                 
                 <Button
                   variant="secondary"
@@ -390,7 +400,7 @@ const ProjectApplicationsList = ({ projectId, onApplicationResponse, onOpenChat,
                   className="flex items-center gap-2 ml-auto"
                 >
                   <ChatBubbleLeftIcon className="h-4 w-4" />
-                  Start Chat
+                  {application.status === 'accepted' ? 'Open Chat' : 'Start Chat'}
                 </Button>
               </div>
             )}
@@ -401,15 +411,6 @@ const ProjectApplicationsList = ({ projectId, onApplicationResponse, onOpenChat,
                   <CheckIcon className="h-5 w-5" />
                   Project Awarded
                 </div>
-                <Button
-                  variant="primary"
-                  size="small"
-                  onClick={() => handleStartChat(application)}
-                  className="flex items-center gap-2"
-                >
-                  <ChatBubbleLeftIcon className="h-4 w-4" />
-                  Open Chat
-                </Button>
 
                 <Button
                   variant="info"

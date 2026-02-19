@@ -104,11 +104,28 @@ const FreelancerApplicationsList = ({ onOpenChat }) => {
     window.open(`/project/${projectId}`, '_blank');
   };
 
-  const handleOpenChat = (application) => {
-    if ((application.status === 'accepted' || application.status === 'awarded') && onOpenChat) {
-      onOpenChat(application);
-    } else {
-  toast('Chat is only available for accepted applications', { icon: '💬' });
+  const handleOpenChat = async (application) => {
+    if (onOpenChat) {
+      // Create or get chat for this application via API
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE_URL}/api/chats/application/${application._id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        if (data.success && data.chat) {
+          onOpenChat(application, data.chat._id);
+        } else {
+          toast.error(data.message || 'Failed to open chat');
+        }
+      } catch (error) {
+        console.error('Error opening chat:', error);
+        toast.error('Failed to open chat');
+      }
     }
   };
 
@@ -202,7 +219,8 @@ const FreelancerApplicationsList = ({ onOpenChat }) => {
                     <div className="flex items-center gap-4 text-sm text-white/80 mb-3">
                       <span className="flex items-center gap-1">
                         <CurrencyDollarIcon className="h-4 w-4" />
-                        Budget: Rs.{application.project?.budgetAmount} ({application.project?.budgetType})
+                        Budget: Rs.{application.project?.agreedPrice || application.project?.budgetAmount} ({application.project?.budgetType})
+                        {application.project?.agreedPrice ? ' 🔒' : ''}
                       </span>
                       {application.project?.deadline && (
                         <span className="flex items-center gap-1">
@@ -241,7 +259,8 @@ const FreelancerApplicationsList = ({ onOpenChat }) => {
                       View Project
                     </Button>
                     
-                    {(application.status === 'accepted' || application.status === 'awarded') && (
+                    {/* Chat button - only before project is awarded */}
+                    {application.status !== 'awarded' && (
                       <Button
                         variant="primary"
                         size="small"

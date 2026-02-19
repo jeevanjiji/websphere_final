@@ -8,7 +8,8 @@ import {
   ClockIcon,
   StarIcon,
   DocumentTextIcon,
-  UserIcon
+  UserIcon,
+  ChatBubbleLeftIcon
 } from '@heroicons/react/24/outline';
 import { Button, Card, Badge } from './ui';
 import ProjectApplicationModal from './ProjectApplicationModal';
@@ -327,6 +328,36 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
       toast.error('Failed to load messages. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle opening chat for an application
+  const handleApplicationChat = async (application) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please log in');
+        return;
+      }
+      
+      // Create or get chat for this application
+      const response = await fetch(`http://localhost:5000/api/chats/application/${application._id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (data.success && data.chat) {
+        setChatModal({ isOpen: true, chatId: data.chat._id });
+      } else {
+        toast.error(data.message || 'Failed to open chat');
+      }
+    } catch (error) {
+      console.error('Error opening chat:', error);
+      toast.error('Failed to open chat');
     }
   };
 
@@ -867,10 +898,23 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
                       </span>
                     </div>
                     
-                    {(application.status === 'accepted' || application.status === 'awarded') && (
-                      <div className="flex justify-end">
-                        {/* Only show workspace button if workspace exists for this freelancer */}
-                        {workspaceAvailability[application.project._id] && (
+                    <div className="flex items-center gap-2">
+                      {/* Chat button - only before project is awarded (for negotiation) */}
+                      {(application.status === 'pending' || application.status === 'accepted') && (
+                        <Button 
+                          variant="secondary" 
+                          size="small"
+                          onClick={() => handleApplicationChat(application)}
+                          className="flex items-center gap-1"
+                        >
+                          <ChatBubbleLeftIcon className="h-4 w-4" />
+                          Chat
+                        </Button>
+                      )}
+
+                      {/* Workspace button - only for awarded apps with workspace */}
+                      {application.status === 'awarded' && 
+                        workspaceAvailability[application.project._id] && (
                           <Button 
                             variant="success" 
                             size="small"
@@ -884,9 +928,8 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
                           >
                             Open Workspace
                           </Button>
-                        )}
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

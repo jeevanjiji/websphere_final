@@ -216,7 +216,7 @@ const ClientDashboard = () => {
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1 flex-shrink-0">
                   <CurrencyDollarIcon className="h-4 w-4" />
-                  <span className="truncate">Rs.{project.budgetAmount}</span>
+                  <span className="truncate">Rs.{project.agreedPrice || project.budgetAmount}{project.agreedPrice ? ' 🔒' : ''}</span>
                 </span>
                 <span className="flex items-center gap-1 flex-shrink-0">
                   <ClockIcon className="h-4 w-4" />
@@ -320,7 +320,7 @@ const ClientDashboard = () => {
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <span className="flex items-center gap-1">
                 <CurrencyDollarIcon className="h-4 w-4" />
-                Rs.{selectedProject.budgetAmount} ({selectedProject.budgetType})
+                Rs.{selectedProject.agreedPrice || selectedProject.budgetAmount} ({selectedProject.budgetType}){selectedProject.agreedPrice ? ' 🔒 Agreed' : ''}
               </span>
               {getStatusBadge(selectedProject.status)}
             </div>
