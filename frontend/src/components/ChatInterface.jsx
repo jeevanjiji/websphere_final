@@ -100,10 +100,10 @@ const ChatInterface = ({ chatId, isOpen, onClose, user, isWorkspaceChat = false 
       if (data.success) {
         setChat(data.chat);
         setMessages(data.messages);
-        // Track price lock state
-        if (data.chat?.project?.agreedPrice) {
+        // Track price lock state - locked if agreed price exists OR project is already awarded
+        if (data.chat?.project?.agreedPrice || data.chat?.project?.status === 'awarded' || data.chat?.project?.status === 'in_progress') {
           setPriceLocked(true);
-          setAgreedPrice(data.chat.project.agreedPrice);
+          setAgreedPrice(data.chat.project.agreedPrice || data.chat.project.finalRate || data.chat.project.budgetAmount);
         }
       } else {
         toast.error(data.message || 'Failed to load chat');
@@ -438,7 +438,7 @@ const ChatInterface = ({ chatId, isOpen, onClose, user, isWorkspaceChat = false 
           </div>
           
           <div className="flex items-center gap-2">
-            {!priceLocked && (
+            {!priceLocked && chat?.project?.status !== 'awarded' && chat?.project?.status !== 'in_progress' && (
               <Button
                 variant="secondary"
                 size="small"

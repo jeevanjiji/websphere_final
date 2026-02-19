@@ -643,14 +643,16 @@ router.put('/messages/:messageId/respond-to-offer', auth(['client', 'freelancer'
         application.proposedRate = agreedAmount;
         application.proposedTimeline = agreedTimeline;
         application.negotiatedAt = new Date();
-        // Auto-award the application
-        application.status = 'awarded';
+        // Mark application as accepted (NOT awarded) - client must click "Select for Job" to award
+        if (application.status === 'pending') {
+          application.status = 'accepted';
+        }
         application.respondedAt = new Date();
         await application.save();
-        console.log('✅ Application auto-awarded with negotiated rate:', agreedAmount);
+        console.log('✅ Application accepted with negotiated rate:', agreedAmount, '(client must Select for Job to award)');
       }
 
-      // Lock the agreed price on the project AND auto-award it
+      // Lock the agreed price on the project (but do NOT auto-award - client must Select for Job)
       const project = await Project.findById(chat.project);
       if (project) {
         project.agreedPrice = agreedAmount;
@@ -660,19 +662,8 @@ router.put('/messages/:messageId/respond-to-offer', auth(['client', 'freelancer'
         project.priceLockedBy = 'offer_accepted';
         project.finalTimeline = agreedTimeline;
 
-        // Auto-award the project
-        if (project.status === 'open' || project.status === 'pending') {
-          project.status = 'awarded';
-          const freelancerParticipant = chat.participants.find(p => p.role === 'freelancer');
-          if (freelancerParticipant) {
-            project.awardedTo = freelancerParticipant.user;
-          }
-          if (application) {
-            project.awardedApplication = application._id;
-          }
-          project.awardedAt = new Date();
-          console.log('✅ Project auto-awarded via offer acceptance');
-        }
+        // Do NOT auto-award the project - the client must click "Select for Job"
+        // Just keep the project status as-is (open/pending) so the Select for Job button appears
 
         // Record in negotiation history
         project.negotiationHistory.push({
@@ -691,62 +682,7 @@ router.put('/messages/:messageId/respond-to-offer', auth(['client', 'freelancer'
         project.totalProjectValue = agreedAmount + Math.max(fixedServiceCharge, (agreedAmount * serviceChargePercentage) / 100);
 
         await project.save();
-        console.log('✅ Project agreedPrice locked at:', agreedAmount);
-
-        // Reject all other pending applications for this project
-        if (application) {
-          await Application.updateMany(
-            {
-              project: project._id,
-              _id: { $ne: application._id },
-              status: { $in: ['pending', 'accepted'] }
-            },
-            { status: 'rejected' }
-          );
-          console.log('✅ Other applications rejected');
-        }
-
-        // Create workspace if it doesn't exist
-        const existingWorkspace = await Workspace.findOne({ project: project._id });
-        if (!existingWorkspace && application) {
-          try {
-            const freelancerParticipant = chat.participants.find(p => p.role === 'freelancer');
-            const clientParticipant = chat.participants.find(p => p.role === 'client');
-            const workspace = new Workspace({
-              project: project._id,
-              client: clientParticipant?.user,
-              freelancer: freelancerParticipant?.user,
-              application: application._id,
-              expectedEndDate: project.deadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            });
-            await workspace.save();
-            console.log('✅ Workspace auto-created on offer acceptance:', workspace._id);
-          } catch (wsErr) {
-            console.error('⚠️ Workspace creation failed (non-blocking):', wsErr.message);
-          }
-        }
-
-        // Update existing pending milestones if workspace exists
-        const workspace = existingWorkspace || await Workspace.findOne({ project: project._id });
-        if (workspace) {
-          const pendingMilestones = await Milestone.find({
-            workspace: workspace._id,
-            status: { $in: ['pending', 'in-progress'] }
-          });
-
-          if (pendingMilestones.length > 0) {
-            // If total of pending milestones exceeds agreed price, scale them proportionally
-            const totalPending = pendingMilestones.reduce((s, m) => s + (m.amount || 0), 0);
-            if (totalPending > agreedAmount) {
-              const ratio = agreedAmount / totalPending;
-              for (const ms of pendingMilestones) {
-                ms.amount = Math.round(ms.amount * ratio);
-                await ms.save();
-              }
-              console.log('✅ Scaled pending milestones to fit agreed price');
-            }
-          }
-        }
+        console.log('✅ Project agreedPrice locked at:', agreedAmount, '- awaiting client Select for Job');
       }
 
       // Decline any other pending offers in this chat

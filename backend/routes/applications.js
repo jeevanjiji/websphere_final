@@ -188,7 +188,7 @@ router.get('/my', auth(['freelancer']), async (req, res) => {
     const applications = await Application.find(query)
       .populate({
         path: 'project',
-        select: 'title description budgetAmount budgetType deadline status category categoryName',
+        select: 'title description budgetAmount budgetType deadline status category categoryName agreedPrice finalRate image awardedAt',
         populate: {
           path: 'client',
           select: 'fullName profilePicture rating.average'
@@ -310,7 +310,7 @@ router.put('/:applicationId/respond', auth(['client']), async (req, res) => {
       });
     }
 
-    if (application.status !== 'pending') {
+    if (!['pending', 'accepted'].includes(application.status)) {
       return res.status(400).json({
         success: false,
         message: 'This application has already been responded to'
@@ -348,22 +348,26 @@ router.put('/:applicationId/respond', auth(['client']), async (req, res) => {
         { status: 'rejected' }
       );
 
-      // Create a chat for communication
-      const chat = new Chat({
-        project: application.project._id,
-        application: application._id,
-        participants: [
-          { user: application.client, role: 'client' },
-          { user: application.freelancer._id, role: 'freelancer' }
-        ]
-      });
-      await chat.save();
+      // Create a chat if one doesn't already exist for this application
+      let chat = await Chat.findOne({ application: application._id });
+      if (!chat) {
+        chat = new Chat({
+          project: application.project._id,
+          application: application._id,
+          participants: [
+            { user: application.client, role: 'client' },
+            { user: application.freelancer._id, role: 'freelancer' }
+          ]
+        });
+        await chat.save();
+      }
 
-      // Create initial system message about project award
+      // Create system message about project award
+      const finalAmount = project.agreedPrice || application.proposedRate;
       const systemMessage = new Message({
         chat: chat._id,
         sender: req.user.userId,
-        content: `🎉 Congratulations! Project "${application.project.title}" has been awarded to ${application.freelancer.fullName}. Final rate: Rs.${application.proposedRate}. Timeline: ${application.proposedTimeline}`,
+        content: `🎉 Congratulations! Project "${application.project.title}" has been awarded to ${application.freelancer.fullName}. Final rate: Rs.${finalAmount}. Timeline: ${application.proposedTimeline}`,
         messageType: 'system'
       });
       await systemMessage.save();
@@ -457,7 +461,7 @@ router.put('/:applicationId/status', auth(['client']), async (req, res) => {
       });
     }
 
-    if (application.status !== 'pending') {
+    if (!['pending', 'accepted'].includes(application.status)) {
       return res.status(400).json({
         success: false,
         message: 'This application has already been responded to'
@@ -500,22 +504,27 @@ router.put('/:applicationId/status', auth(['client']), async (req, res) => {
       const { Chat, Message } = require('../models/Chat');
       const Workspace = require('../models/Workspace');
       
-      const chat = new Chat({
-        project: application.project._id,
-        application: application._id,
-        participants: [
-          { user: application.project.client, role: 'client' },
-          { user: application.freelancer._id, role: 'freelancer' }
-        ]
-      });
-      await chat.save();
+      // Create a chat if one doesn't already exist for this application
+      let chat = await Chat.findOne({ application: application._id });
+      if (!chat) {
+        chat = new Chat({
+          project: application.project._id,
+          application: application._id,
+          participants: [
+            { user: application.project.client, role: 'client' },
+            { user: application.freelancer._id, role: 'freelancer' }
+          ]
+        });
+        await chat.save();
+      }
       chatId = chat._id;
 
-      // Create initial system message about project award
+      // Create system message about project award
+      const finalAmount = project.agreedPrice || application.proposedRate;
       const systemMessage = new Message({
         chat: chat._id,
         sender: req.user.userId,
-        content: `🎉 Congratulations! Project "${application.project.title}" has been awarded to ${application.freelancer.fullName}. Final rate: Rs.${application.proposedRate}. Timeline: ${application.proposedTimeline}`,
+        content: `🎉 Congratulations! Project "${application.project.title}" has been awarded to ${application.freelancer.fullName}. Final rate: Rs.${finalAmount}. Timeline: ${application.proposedTimeline}`,
         messageType: 'system'
       });
       await systemMessage.save();
@@ -730,11 +739,11 @@ router.put('/:applicationId/award', auth(['client']), async (req, res) => {
       });
     }
 
-    // Check if application is accepted
-    if (application.status !== 'accepted') {
+    // Check if application is in a valid state for awarding
+    if (!['accepted', 'pending'].includes(application.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Application must be accepted before awarding the project'
+        message: 'Application must be pending or accepted before awarding the project'
       });
     }
 
@@ -802,11 +811,12 @@ router.put('/:applicationId/award', auth(['client']), async (req, res) => {
     }
 
     // Send system message about project award
+    const finalAmount = project.agreedPrice || application.proposedRate;
     const awardMessage = new Message({
       chat: chat._id,
       sender: req.user.userId,
       messageType: 'system',
-      content: `🎉 Congratulations! Project "${application.project.title}" has been awarded to ${application.freelancer.fullName}. Final rate: Rs.${application.proposedRate}. Timeline: ${application.proposedTimeline}`,
+      content: `🎉 Congratulations! Project "${application.project.title}" has been awarded to ${application.freelancer.fullName}. Final rate: Rs.${finalAmount}. Timeline: ${application.proposedTimeline}`,
       readBy: [
         {
           user: req.user.userId,
