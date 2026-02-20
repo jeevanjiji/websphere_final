@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import FreelancerHero from '../components/FreelancerHero';
 import FreelancerDashboard from '../components/FreelancerDashboard';
 import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
@@ -49,7 +48,6 @@ const FreelancerLandingPage = () => {
   return (
     <div className="freelancer-landing-page bg-bg-secondary">
       <Navbar key={`navbar-${user?.id || 'anonymous'}-${isAuthenticated}`} />
-      <FreelancerHero onTabNavigation={handleTabNavigation} />
       <div ref={dashboardRef}>
         <FreelancerDashboard 
           externalActiveTab={activeTab} 

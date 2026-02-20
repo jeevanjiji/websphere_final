@@ -28,7 +28,7 @@ const CORS_ORIGINS = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
   : (process.env.NODE_ENV === 'production'
       ? [FRONTEND_URL]
-      : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174']);
+      : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:8000']);
 
 const io = socketIo(server, {
   cors: {
@@ -251,6 +251,33 @@ try {
   console.log('✅ AI Assistant router connected → /api/workspace/:workspaceId/ask-ai');
 } catch (err) {
   console.error('❌ Failed to load AI assistant router:', err.message);
+}
+
+// Reviews router (feedback and rating system)
+try {
+  const reviewsRouter = require('./routes/reviews');
+  app.use('/api/reviews', reviewsRouter);
+  console.log('✅ Reviews router connected → /api/reviews');
+} catch (err) {
+  console.error('❌ Failed to load reviews router:', err.message);
+}
+
+// Badges router (freelancer badging system)
+try {
+  const badgesRouter = require('./routes/badges');
+  app.use('/api/badges', badgesRouter);
+  console.log('✅ Badges router connected → /api/badges');
+} catch (err) {
+  console.error('❌ Failed to load badges router:', err.message);
+}
+
+// Pricing router (AI pricing recommendations)
+try {
+  const pricingRouter = require('./routes/pricing');
+  app.use('/api/pricing', pricingRouter);
+  console.log('✅ Pricing router connected → /api/pricing');
+} catch (err) {
+  console.error('❌ Failed to load pricing router:', err.message);
 }
 
 /* ──────────────────────────────────────────

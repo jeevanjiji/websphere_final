@@ -117,6 +117,39 @@ const messageSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    // Sentiment analysis fields
+    sentiment: {
+      score: {
+        type: Number,
+        min: -1,
+        max: 1
+      },
+      magnitude: {
+        type: Number,
+        min: 0
+      },
+      label: {
+        type: String,
+        enum: ['very_positive', 'positive', 'neutral', 'negative', 'very_negative']
+      },
+      confidence: {
+        type: Number,
+        min: 0,
+        max: 1
+      },
+      tones: [{
+        type: String
+      }],
+      keywords: [{
+        type: String
+      }],
+      isFlagged: {
+        type: Boolean,
+        default: false
+      },
+      flagReason: String,
+      suggestions: [String]
+    },
     edited: {
       type: Boolean,
       default: false

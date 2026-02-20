@@ -202,6 +202,22 @@ const userSchema = new mongoose.Schema({
     default: 0
   },
   
+  // Badge and XP system
+  totalXP: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  level: {
+    type: Number,
+    default: 1,
+    min: 1
+  },
+  featuredBadges: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'UserBadge'
+  }],
+  
   // Social links
   socialLinks: {
     linkedin: String,

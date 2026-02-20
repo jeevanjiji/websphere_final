@@ -347,6 +347,38 @@ const ChatInterface = ({ chatId, isOpen, onClose, user, isWorkspaceChat = false 
                     )}
                     <p className="text-sm">{message.content}</p>
                     
+                    {/* Sentiment Indicator */}
+                    {message.sentiment && message.messageType === 'text' && (
+                      <div className={`flex items-center gap-1.5 mt-1.5 text-xs ${
+                        isMine ? 'text-green-100' : 'text-gray-400'
+                      }`}>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                          message.sentiment.label === 'very_positive' ? 'bg-green-500/30 text-green-100' :
+                          message.sentiment.label === 'positive' ? 'bg-green-400/30 text-green-100' :
+                          message.sentiment.label === 'neutral' ? 'bg-gray-400/30 text-gray-100' :
+                          message.sentiment.label === 'negative' ? 'bg-orange-400/30 text-orange-100' :
+                          message.sentiment.label === 'very_negative' ? 'bg-red-500/30 text-red-100' :
+                          'bg-gray-400/30 text-gray-100'
+                        }`}>
+                          {message.sentiment.label === 'very_positive' ? '++ Positive' :
+                           message.sentiment.label === 'positive' ? '+ Positive' :
+                           message.sentiment.label === 'neutral' ? 'Neutral' :
+                           message.sentiment.label === 'negative' ? '- Negative' :
+                           message.sentiment.label === 'very_negative' ? '-- Negative' : 'Neutral'}
+                        </span>
+                        {message.sentiment.tones?.length > 0 && (
+                          <span className="opacity-75 capitalize">
+                            • {message.sentiment.tones.slice(0, 2).join(', ')}
+                          </span>
+                        )}
+                        {message.sentiment.isFlagged && (
+                          <span className="text-red-400 font-medium flex items-center gap-0.5">
+                            ⚠ Flagged
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className={`text-xs mt-1 ${
                       isMine ? 'text-green-100' : 'text-gray-500'
                     }`}>
@@ -679,6 +711,38 @@ const ChatInterface = ({ chatId, isOpen, onClose, user, isWorkspaceChat = false 
                     )}
 
                     <p className="text-sm">{message.content}</p>
+                    
+                    {/* Sentiment Indicator */}
+                    {message.sentiment && message.messageType === 'text' && (
+                      <div className={`flex items-center gap-1.5 mt-1.5 text-xs ${
+                        isMine ? 'text-green-100' : 'text-gray-400'
+                      }`}>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                          message.sentiment.label === 'very_positive' ? 'bg-green-500/30 text-green-100' :
+                          message.sentiment.label === 'positive' ? 'bg-green-400/30 text-green-100' :
+                          message.sentiment.label === 'neutral' ? 'bg-gray-400/30 text-gray-100' :
+                          message.sentiment.label === 'negative' ? 'bg-orange-400/30 text-orange-100' :
+                          message.sentiment.label === 'very_negative' ? 'bg-red-500/30 text-red-100' :
+                          'bg-gray-400/30 text-gray-100'
+                        }`}>
+                          {message.sentiment.label === 'very_positive' ? '++ Positive' :
+                           message.sentiment.label === 'positive' ? '+ Positive' :
+                           message.sentiment.label === 'neutral' ? 'Neutral' :
+                           message.sentiment.label === 'negative' ? '- Negative' :
+                           message.sentiment.label === 'very_negative' ? '-- Negative' : 'Neutral'}
+                        </span>
+                        {message.sentiment.tones?.length > 0 && (
+                          <span className="opacity-75 capitalize">
+                            • {message.sentiment.tones.slice(0, 2).join(', ')}
+                          </span>
+                        )}
+                        {message.sentiment.isFlagged && (
+                          <span className="text-red-400 font-medium flex items-center gap-0.5">
+                            ⚠ Flagged
+                          </span>
+                        )}
+                      </div>
+                    )}
                     
                     <div className={`text-xs mt-1 ${
                       isMine ? 'text-green-100' : 'text-gray-500'

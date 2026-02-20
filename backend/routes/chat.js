@@ -3,6 +3,7 @@ const { Chat, Message } = require('../models/Chat');
 const Application = require('../models/Application');
 const { auth } = require('../middlewares/auth');
 const { shouldSummarize, summarizeMessage } = require('../services/chatSummarizer');
+const SentimentAnalyzer = require('../services/sentimentAnalyzer');
 const router = express.Router();
 
 // GET /api/chats - Get user's chats
@@ -235,11 +236,27 @@ router.post('/:chatId/messages', auth(['client', 'freelancer']), async (req, res
       }
     }
 
-    // Create message
+    // --- CHECK AND REDACT PROFANITY BEFORE SAVING ---
+    let messageContent = content;
+    let profanityWasRedacted = false;
+    let originalProfanityWords = [];
+    
+    if (messageType === 'text' && content && content.trim().length > 0) {
+      const hasProfanity = SentimentAnalyzer.containsProfanity(content);
+      if (hasProfanity) {
+        const redaction = SentimentAnalyzer.redactProfanity(content);
+        messageContent = redaction.redacted; // Use redacted content
+        profanityWasRedacted = true;
+        originalProfanityWords = redaction.foundProfanity;
+        console.log('⚠️ Profanity redacted:', originalProfanityWords, '->', messageContent);
+      }
+    }
+
+    // Create and save message FIRST (before any async processing)
     const message = new Message({
       chat: chatId,
       sender: req.user.userId,
-      content,
+      content: messageContent,
       messageType,
       attachments,
       offerDetails,
@@ -252,33 +269,77 @@ router.post('/:chatId/messages', auth(['client', 'freelancer']), async (req, res
 
     await message.save();
 
-    // --- AI summarization for long client messages (non-blocking) ---
+    // Update chat's last message and activity
+    chat.lastMessage = message._id;
+    chat.lastActivity = new Date();
+    await chat.save();
+
+    // --- NOW run AI summarization and sentiment analysis in BACKGROUND (non-blocking) ---
+    // This ensures fast response to user while analysis happens in background
+    
+    // Fire AI summarization (don't await - run in background)
     if (messageType === 'text' && shouldSummarize(content)) {
-      try {
-        // Figure out project title for better context
-        const chatWithProject = await Chat.findById(chatId).populate('project', 'title').lean();
-        const projectTitle = chatWithProject?.project?.title || '';
+      (async () => {
+        try {
+          const chatWithProject = await Chat.findById(chatId).populate('project', 'title').lean();
+          const projectTitle = chatWithProject?.project?.title || '';
+          const senderParticipant = chat.participants.find(p => p.user.toString() === req.user.userId);
+          const isClientSender = senderParticipant?.role === 'client';
 
-        // Determine sender role (is the sender a client?)
-        const senderParticipant = chat.participants.find(
-          p => p.user.toString() === req.user.userId
-        );
-        const isClientSender = senderParticipant?.role === 'client';
-
-        if (isClientSender) {
-          const result = await summarizeMessage(content, projectTitle);
-          if (result) {
-            message.aiSummary = result.summary;
-            message.aiActionItems = result.actionItems;
-            message.aiGeneratedAt = new Date();
-            message.aiModel = 'llama-3.3-70b-versatile';
-            await message.save();
-            console.log('🤖 AI summary attached to message', message._id);
+          if (isClientSender) {
+            const result = await summarizeMessage(content, projectTitle);
+            if (result) {
+              message.aiSummary = result.summary;
+              message.aiActionItems = result.actionItems;
+              message.aiGeneratedAt = new Date();
+              message.aiModel = 'llama-3.3-70b-versatile';
+              await message.save();
+              console.log('🤖 AI summary attached to message', message._id);
+            }
           }
+        } catch (aiErr) {
+          console.warn('⚠️ AI summarization failed (non-blocking):', aiErr.message);
         }
-      } catch (aiErr) {
-        console.warn('⚠️ AI summarization failed (non-blocking):', aiErr.message);
-      }
+      })();
+    }
+
+    // Fire sentiment analysis (don't await - run in background)
+    // IMPORTANT: Analyze ORIGINAL content, not redacted, to detect profanity sentiment
+    if (messageType === 'text' && content && content.trim().length > 0) {
+      (async () => {
+        try {
+          // Use ORIGINAL content for sentiment analysis (not the redacted version)
+          const textToAnalyze = content; 
+          const sentimentResult = await SentimentAnalyzer.analyzeSentiment(textToAnalyze, { detailed: true });
+          
+          if (sentimentResult.success) {
+            message.sentiment = {
+              score: sentimentResult.sentiment.score,
+              magnitude: sentimentResult.sentiment.magnitude,
+              label: sentimentResult.sentiment.label,
+              confidence: sentimentResult.sentiment.confidence,
+              tones: sentimentResult.sentiment.tones || [],
+              keywords: sentimentResult.sentiment.keywords || []
+            };
+            
+            // Check if message is problematic (very negative)
+            if (sentimentResult.sentiment.score < -0.5) {
+              const flagResult = await SentimentAnalyzer.flagProblematicMessage(content);
+              if (flagResult.flagged && flagResult.flags.length > 0) {
+                message.sentiment.isFlagged = true;
+                message.sentiment.flagReason = flagResult.flags[0].message;
+                message.sentiment.flagType = flagResult.flags[0].type;
+                console.log('⚠️ Message flagged as problematic:', flagResult.flags[0].message);
+              }
+            }
+            
+            await message.save();
+            console.log('🎭 Sentiment analysis attached:', sentimentResult.sentiment.label);
+          }
+        } catch (sentimentErr) {
+          console.warn('⚠️ Sentiment analysis failed (non-blocking):', sentimentErr.message);
+        }
+      })();
     }
 
     // Populate sender info
@@ -550,6 +611,72 @@ router.post('/application/:applicationId', auth(['client', 'freelancer']), async
     res.status(500).json({
       success: false,
       message: 'Failed to create chat',
+      error: error.message
+    });
+  }
+});
+
+// GET /api/chats/:chatId/communication-health - Get sentiment health for a chat
+router.get('/:chatId/communication-health', auth(['client', 'freelancer']), async (req, res) => {
+  console.log('🔥 GET COMMUNICATION HEALTH - Chat ID:', req.params.chatId);
+  try {
+    const { chatId } = req.params;
+
+    // Verify chat exists and user is participant
+    const chat = await Chat.findById(chatId);
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: 'Chat not found'
+      });
+    }
+
+    const isParticipant = chat.participants.some(
+      p => p.user.toString() === req.user.userId
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    // Get the two participants
+    const [user1, user2] = chat.participants.map(p => p.user.toString());
+
+    // Track communication health
+    const health = await SentimentAnalyzer.trackCommunicationHealth(
+      chat.project.toString(),
+      user1,
+      user2
+    );
+
+    if (!health.success) {
+      return res.status(500).json(health);
+    }
+
+    // Get recent flagged messages
+    const flaggedMessages = await Message.find({
+      chat: chatId,
+      'sentiment.isFlagged': true
+    })
+    .populate('sender', 'fullName')
+    .select('content sentiment createdAt')
+    .sort('-createdAt')
+    .limit(5)
+    .lean();
+
+    res.json({
+      success: true,
+      health: health.health,
+      flaggedMessages
+    });
+  } catch (error) {
+    console.error('❌ Error getting communication health:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get communication health',
       error: error.message
     });
   }

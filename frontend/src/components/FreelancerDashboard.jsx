@@ -70,6 +70,14 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
     completedProjects: 0
   });
 
+  // Active projects state
+  const [activeProjects, setActiveProjects] = useState([]);
+  const [loadingActiveProjects, setLoadingActiveProjects] = useState(false);
+
+  // Completed projects state
+  const [completedProjects, setCompletedProjects] = useState([]);
+  const [loadingCompletedProjects, setLoadingCompletedProjects] = useState(false);
+
   // Get user from localStorage
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -79,6 +87,7 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
     { id: 'proposals', name: 'My Proposals', icon: DocumentTextIcon },
     { id: 'messages', name: 'Messages', icon: UserIcon },
     { id: 'active', name: 'Active Projects', icon: BriefcaseIcon },
+    { id: 'completed', name: 'Completed', icon: StarIcon },
     { id: 'earnings', name: 'Earnings', icon: CurrencyDollarIcon },
   ];
 
@@ -181,6 +190,97 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
     }
   };
 
+  // Fetch active projects (awarded projects that are in progress)
+  const fetchActiveProjects = async () => {
+    setLoadingActiveProjects(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please log in to view active projects');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/applications/my?limit=20', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Filter to show only awarded/accepted projects that are NOT completed (active projects)
+        const activeApps = data.applications.filter(app => 
+          (app.status === 'awarded' || app.status === 'accepted') &&
+          app.project?.status !== 'completed'
+        );
+        
+        console.log('Active projects raw:', data.applications.map(a => ({ 
+          id: a._id, 
+          status: a.status, 
+          projectStatus: a.project?.status 
+        })));
+        
+        // Check workspace availability for each
+        const projectsWithWorkspace = [];
+        for (const app of activeApps) {
+          const hasWorkspace = await checkWorkspaceExists(app.project._id);
+          projectsWithWorkspace.push({
+            ...app,
+            hasWorkspace
+          });
+        }
+        
+        setActiveProjects(projectsWithWorkspace);
+      } else {
+        toast.error(data.message || 'Failed to fetch active projects');
+      }
+    } catch (error) {
+      console.error('Error fetching active projects:', error);
+      toast.error('Failed to load active projects. Please try again.');
+    } finally {
+      setLoadingActiveProjects(false);
+    }
+  };
+
+  // Fetch completed projects
+  const fetchCompletedProjects = async () => {
+    setLoadingCompletedProjects(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please log in to view completed projects');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/applications/my?limit=50', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Filter to show projects where the project status is 'completed'
+        const completedApps = data.applications.filter(app => 
+          app.project?.status === 'completed'
+        );
+        console.log('Completed projects:', completedApps);
+        setCompletedProjects(completedApps);
+      } else {
+        toast.error(data.message || 'Failed to fetch completed projects');
+      }
+    } catch (error) {
+      console.error('Error fetching completed projects:', error);
+      toast.error('Failed to load completed projects. Please try again.');
+    } finally {
+      setLoadingCompletedProjects(false);
+    }
+  };
+
   // Load data when component mounts or when activeTab changes
   useEffect(() => {
     if (activeTab === 'recommendations') {
@@ -191,6 +291,10 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
       fetchMyApplications();
     } else if (activeTab === 'messages') {
       fetchChats();
+    } else if (activeTab === 'active') {
+      fetchActiveProjects();
+    } else if (activeTab === 'completed') {
+      fetchCompletedProjects();
     } else if (activeTab === 'earnings') {
       fetchFreelancerStats();
     }
@@ -203,13 +307,13 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
     }
   }, [showAllProjects]);
 
-  // Fetch freelancer stats
+  // Fetch freelancer stats (earnings)
   const fetchFreelancerStats = async () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/freelancer/stats', {
+      const response = await fetch('http://localhost:5000/api/freelancers/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -230,7 +334,7 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
     }
   };
 
-  // Fetch freelancer's applications
+  // Fetch freelancer's applications (pending proposals only)
   const fetchMyApplications = async (page = 1) => {
     setLoading(true);
     try {
@@ -242,7 +346,7 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
 
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '10'
+        limit: '20'
       });
 
       const response = await fetch(`http://localhost:5000/api/applications/my?${params}`, {
@@ -255,8 +359,13 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
       const data = await response.json();
 
       if (data.success) {
-        setApplications(data.applications);
-        setPagination(data.pagination);
+        // Filter to show only pending applications (not accepted/awarded)
+        const pendingApps = data.applications.filter(app => app.status === 'pending');
+        setApplications(pendingApps);
+        setPagination({
+          ...data.pagination,
+          totalProjects: pendingApps.length
+        });
         
         // Check workspace availability for accepted/awarded applications
         const acceptedApps = data.applications.filter(app => app.status === 'accepted' || app.status === 'awarded');
@@ -940,13 +1049,120 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
     );
   };
 
-  const renderActiveProjects = () => (
-    <div className="text-center py-12">
-      <BriefcaseIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-lg font-medium text-gray-900 mb-2">No active projects</h3>
-      <p className="text-gray-600">Your active projects will appear here once you start working.</p>
-    </div>
-  );
+  const renderActiveProjects = () => {
+    if (loadingActiveProjects) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      );
+    }
+
+    if (activeProjects.length === 0) {
+      return (
+        <Card className="text-center py-12">
+          <BriefcaseIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No active projects</h3>
+          <p className="body-regular">Your active projects will appear here once you start working.</p>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {activeProjects.map((application) => {
+          const formattedProject = formatProject(application.project);
+          const isOverdue = application.project?.deadline && new Date(application.project.deadline) < new Date();
+          
+          return (
+            <Card key={application._id} className="hover:shadow-lg transition-shadow">
+              <div className="flex gap-4">
+                {formattedProject.image && (
+                  <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                    <img
+                      src={formattedProject.image}
+                      alt={formattedProject.categoryName}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                
+                <div className="flex-1">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="success">In Progress</Badge>
+                        {isOverdue && <Badge variant="error">Overdue</Badge>}
+                      </div>
+                      <h3 className="heading-4">{formattedProject.title}</h3>
+                      {application.project.categoryName && (
+                        <span className="text-sm text-blue-600 font-medium">
+                          {application.project.categoryName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="body-regular mb-4 line-clamp-2">{formattedProject.description}</p>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <span className="text-sm text-gray-600">Agreed Rate:</span>
+                      <p className="font-semibold text-lg text-green-600">Rs.{application.proposedRate}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600">Project Budget:</span>
+                      <p className="font-semibold">{formattedProject.budget}</p>
+                    </div>
+                  </div>
+
+                  {/* Deadline */}
+                  {application.project?.deadline && (
+                    <div className="flex items-center gap-3 text-sm mb-4">
+                      <ClockIcon className="h-4 w-4 text-gray-500" />
+                      <span className={isOverdue ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                        {isOverdue ? 'Was due: ' : 'Due: '}
+                        {new Date(application.project.deadline).toLocaleDateString()}
+                        {isOverdue && ' (overdue)'}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <UserIcon className="h-4 w-4" />
+                        {formattedProject.client}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {/* Open Workspace button - chat is available inside workspace */}
+                      {application.hasWorkspace && (
+                        <Button 
+                          variant="success" 
+                          size="small"
+                          onClick={() => {
+                            setWorkspaceModal({
+                              isOpen: true,
+                              projectId: application.project._id,
+                              applicationId: application._id
+                            });
+                          }}
+                        >
+                          Open Workspace
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderEarnings = () => (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1039,6 +1255,88 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
     );
   };
 
+  const renderCompletedProjects = () => {
+    if (loadingCompletedProjects) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      );
+    }
+
+    if (completedProjects.length === 0) {
+      return (
+        <Card className="text-center py-12">
+          <StarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No completed projects yet</h3>
+          <p className="body-regular">Your completed projects will appear here once you finish working on them.</p>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {completedProjects.map((application) => {
+          const formattedProject = formatProject(application.project);
+          
+          return (
+            <Card key={application._id} className="hover:shadow-lg transition-shadow">
+              <div className="flex gap-4">
+                {formattedProject.image && (
+                  <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                    <img
+                      src={formattedProject.image}
+                      alt={formattedProject.categoryName}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                
+                <div className="flex-1">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="success">Completed</Badge>
+                      </div>
+                      <h3 className="heading-4">{formattedProject.title}</h3>
+                      {application.project.categoryName && (
+                        <span className="text-sm text-blue-600 font-medium">
+                          {application.project.categoryName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="body-regular mb-4 line-clamp-2">{formattedProject.description}</p>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <span className="text-sm text-gray-600">Earnings:</span>
+                      <p className="font-semibold text-lg text-green-600">Rs.{application.proposedRate}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600">Project Budget:</span>
+                      <p className="font-semibold">{formattedProject.budget}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <UserIcon className="h-4 w-4" />
+                        {formattedProject.client}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'recommendations':
@@ -1051,6 +1349,8 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
         return renderMessages();
       case 'active':
         return renderActiveProjects();
+      case 'completed':
+        return renderCompletedProjects();
       case 'earnings':
         return renderEarnings();
       default:
@@ -1061,7 +1361,8 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
   return (
     <section className="py-16 bg-bg-secondary min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="heading-2 text-center mb-12">Freelancer Dashboard</h2>
+        <h2 className="heading-2 text-center mb-4">Welcome back, {user?.profile?.firstName || user?.username}!</h2>
+        <p className="text-center text-gray-600 mb-8">Find your next project and showcase your skills to clients worldwide</p>
 
         {/* Tab Navigation */}
         <div className="flex flex-wrap justify-center mb-8 bg-white rounded-xl p-2 shadow-card">
