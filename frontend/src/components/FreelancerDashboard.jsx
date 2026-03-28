@@ -508,62 +508,163 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
     };
   };
 
-  const renderAIRecommendations = () => (
-    <div className="space-y-6">
-      {/* AI Recommendations Header */}
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-full text-lg font-semibold mb-4">
-          <StarIcon className="h-6 w-6" />
-          AI-Powered Project Recommendations
+  const renderAIRecommendations = () => {
+    // Match tier config — using website's green theme (#1DBF73 primary)
+    const getTierConfig = (tier) => {
+      const configs = {
+        excellent: { 
+          gradient: 'from-[#1DBF73] to-[#00B22D]',
+          headerBg: 'bg-[#1DBF73]',
+          badge: '🏆', label: 'Excellent', 
+          border: 'border-[#1DBF73]',
+          scoreColor: 'text-[#1DBF73]',
+          tagBg: 'bg-green-50 text-[#1DBF73]'
+        },
+        strong: { 
+          gradient: 'from-[#1DBF73] to-teal-600',
+          headerBg: 'bg-teal-600',
+          badge: '⭐', label: 'Strong', 
+          border: 'border-teal-500',
+          scoreColor: 'text-teal-600',
+          tagBg: 'bg-teal-50 text-teal-700'
+        },
+        good: { 
+          gradient: 'from-[#62646A] to-[#404145]',
+          headerBg: 'bg-[#62646A]',
+          badge: '👍', label: 'Good', 
+          border: 'border-[#B5B6BA]',
+          scoreColor: 'text-[#62646A]',
+          tagBg: 'bg-gray-100 text-[#62646A]'
+        },
+        fair: { 
+          gradient: 'from-[#B5B6BA] to-[#62646A]',
+          headerBg: 'bg-[#B5B6BA]',
+          badge: '🔍', label: 'Fair', 
+          border: 'border-[#DADBDD]',
+          scoreColor: 'text-[#B5B6BA]',
+          tagBg: 'bg-gray-50 text-gray-500'
+        }
+      };
+      return configs[tier] || configs.fair;
+    };
+
+    // Progress bar component matching green theme
+    const ProgressBar = ({ label, value, color = 'bg-[#1DBF73]' }) => (
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-[#62646A] w-20 shrink-0">{label}</span>
+        <div className="flex-1 h-1.5 bg-[#F7F7F7] rounded-full overflow-hidden">
+          <motion.div 
+            className={`h-full ${color} rounded-full`}
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.round(value * 100)}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+          />
         </div>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          Our AI analyzes your skills, experience, and preferences to find the perfect projects for you. 
-          Projects are scored based on skill match, budget compatibility, and portfolio relevance.
-        </p>
+        <span className="text-[11px] font-semibold text-[#404145] w-8 text-right">{Math.round(value * 100)}%</span>
+      </div>
+    );
+
+    return (
+    <div className="space-y-6">
+      {/* Header — Matches website's green theme */}
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#404145] via-[#2d2e31] to-[#404145] p-6 md:p-8">
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #1DBF73 0%, transparent 50%), radial-gradient(circle at 80% 50%, #00B22D 0%, transparent 50%)' }} />
+        <div className="relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 bg-[#1DBF73]/20 border border-[#1DBF73]/30 px-4 py-1.5 rounded-full text-sm font-medium text-[#1DBF73] mb-3">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1DBF73] opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1DBF73]"></span>
+            </span>
+            Hybrid AI Engine v3.0
+          </div>
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-2">Hybrid Recommendation System</h2>
+          <p className="text-gray-400 max-w-2xl mx-auto text-sm">
+            Combining <strong className="text-white">content-based matching</strong>, <strong className="text-white">collaborative filtering</strong>, and <strong className="text-white">re-ranking</strong> to find your ideal projects.
+          </p>
+          
+          {/* Pipeline Steps */}
+          <div className="flex items-center justify-center gap-0 mt-5">
+            {[
+              { num: '1', label: 'Content Matching', sub: 'Semantic Similarity' },
+              { num: '2', label: 'Collaborative Filter', sub: 'Interaction Matrix' },
+              { num: '3', label: 'Re-Ranking', sub: 'Multi-Signal Blend' }
+            ].map((step, i) => (
+              <React.Fragment key={step.label}>
+                {i > 0 && (
+                  <div className="flex items-center px-1">
+                    <div className="w-6 md:w-10 h-[2px] bg-[#1DBF73]/40" />
+                    <svg className="w-3 h-3 text-[#1DBF73]/60 -ml-1" fill="currentColor" viewBox="0 0 20 20"><path d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" /></svg>
+                  </div>
+                )}
+                <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-center min-w-[100px] md:min-w-[120px]">
+                  <div className="w-5 h-5 rounded-full bg-[#1DBF73] text-white text-[10px] font-bold flex items-center justify-center mx-auto mb-1">{step.num}</div>
+                  <div className="text-[11px] font-semibold text-white">{step.label}</div>
+                  <div className="text-[9px] text-gray-500">{step.sub}</div>
+                </div>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Toggle for showing match scores */}
+      {/* Controls Bar */}
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <h3 className="text-xl font-semibold text-gray-900">
-            {aiRecommendations.length} Personalized Matches
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-bold text-[#404145]">
+            {aiRecommendations.length} <span className="text-[#B5B6BA] font-normal">Matches Found</span>
           </h3>
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={fetchAIRecommendations}
             disabled={loadingRecommendations}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F7F7F7] hover:bg-[#DADBDD] text-[#62646A] rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
-            {loadingRecommendations ? 'Refreshing...' : 'Refresh'}
-          </Button>
+            <svg className={`w-3.5 h-3.5 ${loadingRecommendations ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {loadingRecommendations ? 'Running...' : 'Refresh'}
+          </button>
         </div>
         
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={showRecommendations}
-            onChange={(e) => setShowRecommendations(e.target.checked)}
-            className="rounded"
-          />
-          Show match details
+        <label className="flex items-center gap-2 text-sm text-[#62646A] cursor-pointer select-none">
+          <div className={`relative w-9 h-5 rounded-full transition-colors ${showRecommendations ? 'bg-[#1DBF73]' : 'bg-[#DADBDD]'}`}
+               onClick={() => setShowRecommendations(!showRecommendations)}>
+            <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showRecommendations ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
+          Pipeline Details
         </label>
       </div>
 
       {/* Loading State */}
       {loadingRecommendations && (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Finding perfect matches for you...</span>
+        <div className="flex flex-col items-center py-16 bg-[#FAFAFA] rounded-xl border border-[#DADBDD]">
+          <div className="relative mb-5">
+            <div className="w-14 h-14 border-4 border-gray-200 rounded-full" />
+            <div className="absolute top-0 w-14 h-14 border-4 border-transparent border-t-[#1DBF73] rounded-full animate-spin" />
+          </div>
+          <span className="text-[#404145] font-semibold text-base">Running Hybrid Pipeline...</span>
+          <div className="flex items-center gap-2 mt-3">
+            {['Content', 'Collaborative', 'Re-Rank'].map((step, i) => (
+              <React.Fragment key={step}>
+                {i > 0 && <span className="text-[#DADBDD]">→</span>}
+                <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-[#1DBF73]/10 text-[#1DBF73] animate-pulse"
+                      style={{ animationDelay: `${i * 300}ms` }}>
+                  {step}
+                </span>
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* AI Recommendations Grid */}
+      {/* Empty State */}
       {!loadingRecommendations && aiRecommendations.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <StarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No recommendations yet</h3>
-          <p className="text-gray-600 mb-4">
-            Complete your profile with skills and portfolio to get AI-powered project recommendations.
+        <div className="text-center py-16 bg-[#FAFAFA] rounded-xl border border-[#DADBDD]">
+          <div className="w-16 h-16 rounded-full bg-[#1DBF73]/10 flex items-center justify-center mx-auto mb-4">
+            <StarIcon className="w-8 h-8 text-[#1DBF73]" />
+          </div>
+          <h3 className="text-lg font-bold text-[#404145] mb-2">No recommendations yet</h3>
+          <p className="text-[#62646A] mb-5 max-w-md mx-auto text-sm">
+            Complete your profile with skills and portfolio to get AI-powered recommendations.
           </p>
           <Button variant="primary" onClick={() => setActiveTab('browse')}>
             Browse All Projects
@@ -571,148 +672,170 @@ const FreelancerDashboard = ({ externalActiveTab, onTabChange }) => {
         </div>
       )}
 
+      {/* Recommendations Grid */}
       {!loadingRecommendations && aiRecommendations.length > 0 && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {aiRecommendations.map((project) => (
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {aiRecommendations.map((project, index) => {
+            const tierConfig = getTierConfig(project.matchTier);
+            const scorePercent = Math.round((project.scores?.total || 0) * 100);
+            return (
             <motion.div
               key={project._id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-lg shadow-card hover:shadow-lg transition-all duration-300 overflow-hidden border-l-4 border-blue-500"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.06, duration: 0.35 }}
+              className={`group relative bg-white rounded-xl overflow-hidden border ${tierConfig.border} shadow-card hover:shadow-card-hover transition-shadow duration-300`}
             >
-              {/* Match Score Badge */}
-              {showRecommendations && project.scores && (
-                <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-4 py-2">
-                  <div className="flex justify-between items-center text-sm font-medium">
-                    <span>Match Score</span>
-                    <span className="text-lg font-bold">{Math.round(project.scores.total * 100)}%</span>
-                  </div>
-                  {project.matchReason && (
-                    <div className="text-xs mt-1 text-green-100">
-                      {project.matchReason}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
-                    {project.title}
-                  </h3>
-                  <Badge variant="primary" size="small">
-                    {project.categoryName || project.category}
-                  </Badge>
-                </div>
-
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                  {project.description}
-                </p>
-
-                {/* Skills */}
-                {project.skills && project.skills.length > 0 && (
-                  <div className="mb-4">
-                    <div className="flex flex-wrap gap-1">
-                      {project.skills.slice(0, 3).map((skill, index) => (
-                        <Badge
-                          key={`${skill}-${index}`}
-                          variant={showRecommendations && project.scores?.skill > 0.7 ? 'primary' : 'secondary'}
-                          size="small"
-                        >
-                          {skill}
-                        </Badge>
-                      ))}
-                      {project.skills.length > 3 && (
-                        <Badge variant="secondary" size="small">
-                          +{project.skills.length - 3} more
-                        </Badge>
+              {/* Score Header */}
+              <div className={`bg-gradient-to-r ${tierConfig.gradient} px-4 py-3`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {/* Rank Badge inline */}
+                    {index < 3 ? (
+                      <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+                        #{index + 1}
+                      </div>
+                    ) : (
+                      <span className="text-lg">{tierConfig.badge}</span>
+                    )}
+                    <div>
+                      <div className="text-white text-xs font-semibold">{tierConfig.label} Match</div>
+                      {project.matchReason && (
+                        <p className="text-white/60 text-[10px] line-clamp-1 max-w-[160px]">{project.matchReason}</p>
                       )}
                     </div>
                   </div>
+                  <div className="text-2xl font-black text-white">{scorePercent}<span className="text-sm font-bold">%</span></div>
+                </div>
+              </div>
+
+              {/* Card Body */}
+              <div className="p-4">
+                <h3 className="text-sm font-bold text-[#404145] line-clamp-2 mb-1 group-hover:text-[#1DBF73] transition-colors">
+                  {project.title}
+                </h3>
+
+                <p className="text-[#B5B6BA] text-xs mb-3 line-clamp-2">
+                  {project.description}
+                </p>
+
+                {/* Category Badge */}
+                {(project.categoryName || project.category) && (
+                  <div className="mb-3">
+                    <span className="inline-flex px-2 py-0.5 text-[10px] font-medium bg-[#F7F7F7] text-[#62646A] rounded capitalize">
+                      {(project.categoryName || project.category || '').replace(/-/g, ' ')}
+                    </span>
+                  </div>
                 )}
 
-                {/* Project Details */}
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-4 text-sm text-gray-600">
-                    <span className="flex items-center gap-1">
-                      <CurrencyDollarIcon className="h-4 w-4" />
-                      {project.budgetType === 'hourly' 
-                        ? `Rs.${project.agreedPrice || project.finalRate || project.budgetAmount}/hr` 
-                        : `Rs.${project.agreedPrice || project.finalRate || project.budgetAmount}`}
-                      {project.agreedPrice ? ' 🔒' : ''}
-                    </span>
-                    {project.deadline && (
-                      <span className="flex items-center gap-1">
-                        <ClockIcon className="h-4 w-4" />
-                        {new Date(project.deadline).toLocaleDateString()}
+                {/* Skills */}
+                {project.skills && project.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {project.skills.slice(0, 3).map((skill, idx) => (
+                      <span key={`${skill}-${idx}`}
+                            className={`px-2 py-0.5 text-[10px] font-medium rounded ${
+                              project.scores?.skill > 0.5 
+                                ? 'bg-green-50 text-[#1DBF73] border border-green-100' 
+                                : 'bg-[#F7F7F7] text-[#62646A]'
+                            }`}>
+                        {skill}
+                      </span>
+                    ))}
+                    {project.skills.length > 3 && (
+                      <span className="px-2 py-0.5 text-[10px] text-[#B5B6BA] bg-[#F7F7F7] rounded">
+                        +{project.skills.length - 3}
                       </span>
                     )}
                   </div>
-                </div>
-
-                {/* Match Breakdown */}
-                {showRecommendations && project.scores && (
-                  <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="text-xs font-medium text-gray-700 mb-2">Match Breakdown:</div>
-                    <div className="grid grid-cols-2 gap-1 text-xs">
-                      <div className="flex justify-between">
-                        <span>Skills:</span>
-                        <span className="font-medium">{Math.round(project.scores.skill * 100)}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Rate:</span>
-                        <span className="font-medium">{Math.round(project.scores.rate * 100)}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Portfolio:</span>
-                        <span className="font-medium">{Math.round(project.scores.portfolio * 100)}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Overall:</span>
-                        <span className="font-bold text-blue-600">{Math.round(project.scores.total * 100)}%</span>
-                      </div>
-                    </div>
-                  </div>
                 )}
 
-                {/* Action Button */}
-                <Button 
-                  variant="primary" 
-                  size="medium"
-                  className="w-full"
+                {/* Budget & Deadline */}
+                <div className="flex items-center gap-3 text-xs text-[#62646A] mb-3 pb-3 border-b border-[#DADBDD]">
+                  <span className="flex items-center gap-1 font-medium text-[#404145]">
+                    <CurrencyDollarIcon className="h-3.5 w-3.5 text-[#1DBF73]" />
+                    {project.budgetType === 'hourly' 
+                      ? `Rs.${project.agreedPrice || project.finalRate || project.budgetAmount}/hr` 
+                      : `Rs.${project.agreedPrice || project.finalRate || project.budgetAmount}`}
+                  </span>
+                  {project.deadline && (
+                    <span className="flex items-center gap-1 text-[#B5B6BA]">
+                      <ClockIcon className="h-3 w-3" />
+                      {new Date(project.deadline).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+
+                {/* Pipeline Breakdown */}
+                {showRecommendations && project.scores && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="mb-3 p-3 bg-[#FAFAFA] rounded-lg border border-[#DADBDD]"
+                  >
+                    {/* Pipeline flow */}
+                    {project.pipelineStages && (
+                      <div className="flex items-stretch gap-px mb-3 bg-[#DADBDD] rounded-lg overflow-hidden">
+                        {[
+                          { label: 'Content', value: project.pipelineStages.contentBased },
+                          { label: 'Collab.', value: project.pipelineStages.collaborativeFiltering },
+                          { label: 'Final', value: project.pipelineStages.reranked }
+                        ].map((stage) => (
+                          <div key={stage.label} className="flex-1 text-center py-1.5 bg-white">
+                            <div className="text-sm font-bold text-[#404145]">{Math.round(stage.value * 100)}%</div>
+                            <div className="text-[9px] text-[#B5B6BA] font-medium">{stage.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Feature bars */}
+                    <div className="space-y-1.5">
+                      <ProgressBar label="Skills" value={project.scores.skill} color="bg-[#1DBF73]" />
+                      <ProgressBar label="Rate Fit" value={project.scores.rate} color="bg-[#00B22D]" />
+                      <ProgressBar label="Portfolio" value={project.scores.portfolio} color="bg-teal-500" />
+                      <ProgressBar label="Collaborative" value={project.scores.collaborative || 0} color="bg-[#62646A]" />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Apply Button */}
+                <button 
+                  className="w-full bg-[#1DBF73] hover:bg-[#00B22D] text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors active:opacity-90"
                   onClick={() => setApplicationModal({
                     isOpen: true,
                     project: project
                   })}
                 >
-                  <StarIcon className="h-4 w-4 mr-2" />
+                  <StarIcon className="h-4 w-4" />
                   Apply to This Match
-                </Button>
+                </button>
               </div>
             </motion.div>
-          ))}
+          );
+          })}
         </div>
       )}
 
-      {/* Call to Action */}
+      {/* CTA */}
       {!loadingRecommendations && aiRecommendations.length > 0 && (
-        <div className="text-center mt-8 p-6 bg-blue-50 rounded-lg">
-          <h4 className="text-lg font-semibold text-gray-900 mb-2">Want more matches?</h4>
-          <p className="text-gray-600 mb-4">
-            Keep your profile updated with new skills and portfolio items to get better recommendations.
+        <div className="rounded-xl bg-[#FAFAFA] border border-[#DADBDD] p-6 text-center">
+          <h4 className="text-base font-bold text-[#404145] mb-1">Want better matches?</h4>
+          <p className="text-[#62646A] mb-4 text-sm">
+            Keep your profile updated — our hybrid engine recalculates scores in real-time.
           </p>
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-3">
             <Button variant="outline" onClick={() => setActiveTab('browse')}>
-              Browse All Projects
+              Browse All
             </Button>
             <Button variant="primary" onClick={fetchAIRecommendations}>
-              Refresh Recommendations
+              Re-run Pipeline
             </Button>
           </div>
         </div>
       )}
     </div>
   );
+  };
 
   const renderBrowseProjects = () => (
     <div className="space-y-6">

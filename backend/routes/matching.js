@@ -437,8 +437,10 @@ router.post('/cache/clear/:projectId',
 router.get('/health', (req, res) => {
   res.json({
     success: true,
-    service: 'Matching Engine',
+    service: 'Hybrid Recommendation Engine',
     status: 'healthy',
+    version: '2.0.0',
+    pipeline: ['data_preparation', 'candidate_generation', 'collaborative_filtering', 're_ranking'],
     timestamp: new Date().toISOString()
   });
 });

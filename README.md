@@ -2,6 +2,15 @@
 
 A comprehensive freelancer marketplace platform built with React.js frontend and Node.js backend, featuring role-based authentication, project management, and administrative controls.
 
+## 📚 Documentation
+
+- Complete end-to-end system doc: [COMPLETE_SYSTEM_DOCUMENTATION.md](COMPLETE_SYSTEM_DOCUMENTATION.md)
+- Frontend guide: [frontend/README.md](frontend/README.md)
+- Dev scripts & utilities: [DEV_SCRIPTS.md](DEV_SCRIPTS.md)
+- Push notifications: [PUSH_NOTIFICATIONS_GUIDE.md](PUSH_NOTIFICATIONS_GUIDE.md)
+- Timeline/audit trail: [TIMELINE_FEATURE.md](TIMELINE_FEATURE.md)
+- Frontend API migration notes: [FRONTEND_API_MIGRATION.md](FRONTEND_API_MIGRATION.md)
+
 ## 🚀 Tech Stack
 
 ### Frontend Technologies
