@@ -19,6 +19,7 @@ import FreelancerProfileModal from './FreelancerProfileModal';
 const RoleBasedContent = ({ onCardClick }) => {
   const { user, isAuthenticated } = useAuth();
   const [projects, setProjects] = useState([]);
+  const [guestProjects, setGuestProjects] = useState([]);
   const [freelancers, setFreelancers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAllFreelancers, setShowAllFreelancers] = useState(false);
@@ -80,6 +81,24 @@ const RoleBasedContent = ({ onCardClick }) => {
     }
   };
 
+  // Fetch real projects for guests (no auth)
+  const fetchGuestProjects = async () => {
+    if (!showMockDataForGuest) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${buildApiUrl(API_ENDPOINTS.PROJECTS.PUBLIC_BROWSE)}?limit=8`);
+      const data = await response.json();
+      if (data.success) {
+        setGuestProjects(data.projects || []);
+      }
+    } catch (error) {
+      console.error('Error fetching guest projects:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Function to load all freelancers
   const loadAllFreelancers = async () => {
     setShowAllFreelancers(true);
@@ -110,60 +129,10 @@ const RoleBasedContent = ({ onCardClick }) => {
       fetchProjects();
     } else if (showFreelancersForClient) {
       fetchFreelancers();
+    } else if (showMockDataForGuest) {
+      fetchGuestProjects();
     }
-  }, [user, showProjectsForFreelancer, showFreelancersForClient]);
-
-  // Mock data for guests (non-logged in users)
-  const mockServices = [
-    {
-      id: 1,
-      title: "E-commerce Website Development",
-      description: "Looking for a skilled React developer to build a modern e-commerce platform with payment integ ion.",
-      budget: "₹2,00,000 - ₹4,00,000",
-      timeline: "2-3 months",
-      skills: ["React", "Node.js", "MongoDB", "Razorpay"],
-      client: "TechCorp Solutions",
-      icon: CodeBracketIcon,
-      color: "from-blue-500 to-purple-600",
-      image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400&h=250&fit=crop&crop=center" // E-commerce specific
-    },
-    {
-      id: 2,
-      title: "Mobile App UI/UX Design",
-      description: "Need a creative designer to design a mobile app for fitness tracking with modern, clean design.",
-      budget: "₹1,50,000 - ₹3,00,000",
-      timeline: "1-2 months",
-      skills: ["Figma", "UI/UX", "Mobile Design", "Prototyping"],
-      client: "FitLife Innovations",
-      icon: PaintBrushIcon,
-      color: "from-pink-500 to-red-600",
-      image: "https://images.unsplash.com/photo-1541462608143-67571c6738dd?w=400&h=250&fit=crop&crop=center" // UI/UX Design
-    },
-    {
-      id: 3,
-      title: "Data Analytics Dashboard",
-      description: "Build an interactive dashboard for sales data visualization and business intelligence.",
-      budget: "₹1,00,000 - ₹2,50,000",
-      timeline: "3-4 weeks",
-      skills: ["Python", "Tableau", "SQL", "Data Visualization"],
-      client: "DataDriven Corp",
-      icon: CodeBracketIcon,
-      color: "from-green-500 to-teal-600",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop&crop=center" // Data Science
-    },
-    {
-      id: 4,
-      title: "Brand Identity & Logo Design",
-      description: "Create a complete brand identity package including logo, business cards, and marketing materials.",
-      budget: "₹75,000 - ₹1,50,000",
-      timeline: "3-4 weeks",
-      skills: ["Graphic Design", "Adobe Creative Suite", "Brand Identity", "Logo Design"],
-      client: "StartUp Ventures",
-      icon: PaintBrushIcon,
-      color: "from-purple-500 to-pink-600",
-      image: "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400&h=250&fit=crop&crop=center" // Graphic Design
-    }
-  ];
+  }, [user, showProjectsForFreelancer, showFreelancersForClient, showMockDataForGuest]);
 
   // Format project data for display
   const formatProjectForDisplay = (project) => {
@@ -276,8 +245,14 @@ const RoleBasedContent = ({ onCardClick }) => {
     sectionSubtitle = showAllFreelancers 
       ? `Browse ${freelancers.length} skilled professionals ready to work on your projects`
       : 'Connect with skilled professionals ready to work on your projects';
+  } else if (guestProjects.length > 0) {
+    displayData = guestProjects.map(formatProjectForDisplay);
+    sectionTitle = 'Latest Projects';
+    sectionSubtitle = 'Real projects from clients hiring right now';
   } else {
-    displayData = mockServices;
+    displayData = [];
+    sectionTitle = 'Latest Projects';
+    sectionSubtitle = 'Real projects from clients hiring right now';
   }
 
   return (
@@ -308,8 +283,14 @@ const RoleBasedContent = ({ onCardClick }) => {
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
+        ) : displayData.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-medium">
+              No open projects yet. Check back soon.
+            </p>
+          </div>
         ) : (
-          <div className={`grid gap-6 ${
+          <div className={`grid gap-6 items-stretch ${
             showFreelancersForClient && showAllFreelancers 
               ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' 
               : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
@@ -341,7 +322,7 @@ const RoleBasedContent = ({ onCardClick }) => {
                         onCardClick('project');
                       }
                     }}
-                    className={`overflow-hidden h-96 flex flex-col group relative ${
+                    className={`overflow-hidden h-full min-h-[24rem] flex flex-col group relative ${
                       showFreelancersForClient && showAllFreelancers ? 'cursor-default' : 'cursor-pointer'
                     }`}
                   >

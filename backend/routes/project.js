@@ -9,6 +9,71 @@ const {
 } = require('../utils/cloudinaryConfig');
 const router = express.Router();
 
+// GET /api/projects/public - Get open projects for guests (no auth required)
+router.get('/public', async (req, res) => {
+  try {
+    const {
+      search,
+      skills,
+      budgetMin,
+      budgetMax,
+      budgetType,
+      page = 1,
+      limit = 8
+    } = req.query;
+
+    let query = { status: 'open' };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (skills) {
+      const skillsArray = skills.split(',').map((s) => s.trim());
+      query.skills = { $in: skillsArray };
+    }
+
+    if (budgetType) {
+      query.budgetType = budgetType;
+    }
+
+    if (budgetMin || budgetMax) {
+      query.budgetAmount = {};
+      if (budgetMin) query.budgetAmount.$gte = parseFloat(budgetMin);
+      if (budgetMax) query.budgetAmount.$lte = parseFloat(budgetMax);
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const projects = await Project.find(query)
+      .populate('client', 'fullName profilePicture rating.average rating.count')
+      .sort('-createdAt')
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const totalProjects = await Project.countDocuments(query);
+    const totalPages = Math.ceil(totalProjects / parseInt(limit));
+
+    res.json({
+      success: true,
+      projects,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalProjects,
+        hasNextPage: parseInt(page) < totalPages,
+        hasPrevPage: parseInt(page) > 1
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching public projects:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // GET /api/projects/browse - Get all open projects for freelancers to browse
 router.get('/browse', auth(['freelancer']), async (req, res) => {
   console.log('🔥 GET BROWSE PROJECTS - User ID:', req.user.userId);

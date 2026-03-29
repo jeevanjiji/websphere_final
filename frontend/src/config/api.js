@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
   // Projects endpoints
   PROJECTS: {
     BROWSE: '/api/projects/browse',
+    PUBLIC_BROWSE: '/api/projects/public',
     MY: '/api/projects/my'
   },
 
